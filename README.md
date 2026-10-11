@@ -33,6 +33,19 @@ Closing the last app tab stops the local server. Use **Stop** to cancel a job wh
 
 OCR is a draft. It works best for plain text; check complex text, equations and handwriting against the images. The [manual](docs/MANUAL.md#correct-complex-content-with-an-llm) explains the optional AI correction workflow.
 
+## Partner: review(er)
+
+[review(er)](https://github.com/Enerbonn/review-er) is a companion learning skill
+for AI agents. Give it your TransVision exports and, optionally, a separate audio
+transcript or lecture notes. **Review** mode helps you learn in short conversations
+while building notes; **Reviewer** mode creates the document directly when time
+is short. It asks about your learning goal, connects examples to it, and saves
+local progress for the next session. No automatic app integration or upload is required.
+
+PDF parts retain the video name: a 250-frame export from `lesson.mp4` produces
+`lesson_01.pdf`, `lesson_02.pdf`, and `lesson_03.pdf` at the default 100-page limit.
+Give the skill all relevant parts so it can follow source timestamps across them.
+
 ## Credits
 
 **© 2026 Irvin John Parulan.** Based on [FrameRead by @pr1hm](https://github.com/pr1hm/FrameRead), originally published at [s-pra1ham/FrameRead](https://github.com/s-pra1ham/FrameRead). TransVision retains its [Apache 2.0 license](LICENSE); see [NOTICE](NOTICE).
