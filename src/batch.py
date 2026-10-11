@@ -243,6 +243,22 @@ class BatchQueue:
             job.update(changes)
             self.write(state)
 
+    def set_output_root(self, folder):
+        """Pin unfinished jobs to the chosen destination without moving old outputs."""
+        from src.export_location import writable_folder
+
+        with self.guard:
+            if self.running() or self.thread and self.thread.is_alive():
+                raise ValueError("Pause or finish the batch before changing its folder.")
+            path = writable_folder(str(folder))
+            state = self.snapshot()
+            for job in state["jobs"]:
+                if job["status"] in ("queued", "scanning", "exporting", "failed"):
+                    job["output_root"] = str(path)
+            state["output_root"] = str(path)
+            self.write(state)
+            self.output_root = path
+
     def pause(self):
         self.pause_path.parent.mkdir(parents=True, exist_ok=True)
         self.pause_path.write_text("Pause after the current file.\n", encoding="utf-8")
@@ -316,6 +332,7 @@ class BatchQueue:
             )
 
     def process(self, job, config):
+        output_root = Path(job.get("output_root", self.output_root))
         job_id = job["id"]
 
         def report(message, progress=0, **details):
@@ -369,7 +386,7 @@ class BatchQueue:
             else:
                 session = detect(
                     job["video"],
-                    self.output_root,
+                    output_root,
                     report,
                     content_roi=roi,
                     adaptive=True,
@@ -383,6 +400,7 @@ class BatchQueue:
                 pdf_timestamps=config["pdf_timestamps"],
                 ocr_profile=config["ocr_profile"],
                 export_cropped=True,
+                export_root=str(output_root),
             )
             markers, stats = apply_sensitivity(
                 session["markers"], config["sensitivity"], config["hide_camera"]
@@ -422,19 +440,19 @@ class BatchQueue:
                 )
                 return
             self.update(job_id, status="exporting", progress=0)
-            self.output_root.mkdir(parents=True, exist_ok=True)
+            output_root.mkdir(parents=True, exist_ok=True)
             outputs = []
             if config["task"] in ("pdf", "both"):
                 result = export_pdf(session, markers, report)
                 session["pdf_result"] = result
                 stem = Path(job["video"]).stem
-                if (self.output_root / (stem + ".pdf")).exists() or (
-                    self.output_root / (stem + "_01.pdf")
+                if (output_root / (stem + ".pdf")).exists() or (
+                    output_root / (stem + "_01.pdf")
                 ).exists():
                     stem += "-" + job_id[:8]
                 parts = split_pdf(
                     Path(result["folder"]) / result["filename"],
-                    self.output_root,
+                    output_root,
                     stem,
                     config.get("max_pdf_pages", 100),
                 )

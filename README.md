@@ -28,6 +28,7 @@ Closing the last app tab stops the local server. Use **Stop** to cancel a job wh
 - One sensitivity slider: completed frames, major steps or fine detail, with live frame counts.
 - Manual frame selection and timestamped PDFs, split into parts of at most 100 pages.
 - Batch queue: PDF, OCR or both; automatic export or review first; stop, pause, resume and retry.
+- Choose an export folder for PDF and OCR: remember it, change it anytime, or ask before each export or batch run.
 - Local OCR for plain text, plus AI-marked images and a correction prompt for complex content.
 - Stop loading or processing; closing the last app tab shuts down its local server.
 

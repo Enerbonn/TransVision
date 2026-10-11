@@ -53,7 +53,8 @@ def export_pdf(session, markers, report, recorder=None):
     if not selected:
         raise ValueError("Include at least one frame before exporting PDF.")
     folder = unique_folder(
-        Path(session["folder"]) / "exports", Path(session["video"]).stem + "_pdf"
+        session.get("export_root") or Path(session["folder"]) / "exports",
+        Path(session["video"]).stem + "_pdf"
     )
     path = folder / "presentation_frames.pdf"
     temporary = folder / "presentation_frames.partial.pdf"

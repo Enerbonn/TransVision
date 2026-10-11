@@ -23,6 +23,7 @@
       ><button id="themeToggle" class="quiet">Theme: system</button
       ><button id="newVideo" class="quiet">Choose another video</button>
       <button id="batchButton" class="primary">Batch queue</button>
+      <button id="exportSettings" class="quiet">Export folder</button>
 <a class="button quiet" href="__SERVER__/manual" target="_blank" rel="noopener">Manual</a>
     </header>
     <section id="setup" class="setup">
@@ -294,6 +295,7 @@
           ><small id="outputHint"
             >Only selected frames are exported.</small
           >
+          <small id="exportDestination" class="destination-path"></small>
         </div>
         <div class="footer-actions">
           <button id="copyMarkedTimes">Copy marked times</button
@@ -400,6 +402,8 @@
     <dialog id="batchDialog" class="batch-dialog">
       <div class="batch-heading"><h2>Batch queue</h2><button id="closeBatch">Close</button></div>
       <p>Queue recordings. Configure once. Export one file at a time.</p>
+      <p id="batchDestination" class="destination-path"></p>
+      <button id="batchExportSettings" class="quiet">Change export folder</button>
       <label for="batchPaths">Video paths · one per line</label>
       <textarea id="batchPaths" rows="4" placeholder="C:\Recordings\recording-1.mp4&#10;C:\Recordings\recording-2.mp4"></textarea>
       <div class="batch-settings">
@@ -417,11 +421,24 @@
       <div class="batch-table-wrap"><table class="batch-table"><thead><tr><th>File</th><th>Task</th><th>Status</th><th>Progress / notes</th><th>Added</th><th>Completed</th><th>Output</th></tr></thead><tbody id="batchRows"></tbody></table></div>
       <p id="batchError" role="alert" hidden></p>
     </dialog>
+    <dialog id="exportDialog" class="export-dialog">
+      <form id="exportForm">
+        <h2>Export folder</h2>
+        <label for="exportPath">Save exports to</label>
+        <div class="export-path-row"><input id="exportPath" type="text" required /><button id="browseExport" type="button">Browse…</button></div>
+        <label for="exportMode">Folder preference</label>
+        <select id="exportMode"><option value="saved">Remember this folder</option><option value="ask">Ask each time</option></select>
+        <small>Applies to PDF and OCR. A batch uses one folder for the whole run.</small>
+        <p id="exportError" role="alert" hidden></p>
+        <div class="export-path-row"><button id="confirmExport" type="submit" class="primary">Save preference</button><button id="cancelExport" type="button">Cancel</button></div>
+      </form>
+    </dialog>
     <script>
       window.FRAMEREAD = { server: "__SERVER__", token: "__TOKEN__" };
     </script>
     <script src="__SERVER__/selection.js"></script>
     <script src="__SERVER__/editor.js"></script>
+    <script src="__SERVER__/export-location.js"></script>
     <script src="__SERVER__/batch.js"></script>
   </body>
 </html>

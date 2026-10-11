@@ -34,6 +34,31 @@ No images are uploaded automatically and TransVision does not call a paid LLM AP
 
 ## Export names and folders
 
+Click **Export folder** to choose where PDF and OCR exports are saved. On your first
+export (or first batch start), TransVision asks you to confirm a folder. The initial
+suggestion is the application's `output` folder.
+
+- **Remember this folder:** use it for later exports and after restarting the app.
+- **Ask each time:** choose before each single-video PDF/OCR export or batch run.
+- **Change anytime:** open Export folder again, or use Change export folder in the batch queue.
+
+A batch uses one destination for its entire run so it can work unattended. Its
+current destination is shown above the queue. Every completed video is saved
+immediately; you do not have to wait for the whole queue to finish. Canceling the
+folder dialog does not start processing. An unwritable folder gives an error
+before processing starts.
+
+Changing the preference affects future exports; it does not move earlier files.
+When you resume a stopped batch in a different folder, unfinished jobs use that
+folder, while completed jobs retain their original output links. Completed scans
+can still be reused from their original review folders.
+
+Single exports create a video-named subfolder in the chosen folder. Batch PDF parts
+are also placed directly in the batch destination; OCR and AI-marked images are
+grouped in video-named subfolders. Review sessions and scan caches may remain in
+the application's original `output` folder. Preferences are stored locally in
+`.local/export-preferences.json` and are not included in GitHub downloads.
+
 Frames use original-video time: `HH-MM-SS-mmm.png`. Included AI flags add `__AI.png`. The same images also appear in AI-marked for convenient upload. Unflagged images stay in the export root.
 
 The OCR export contains transcription.txt, a compatibility copy named visual_transcript.txt, selected_frames.json, duplicates.json, AI_ENHANCEMENT_PROMPT.txt and AI_UPLOAD.zip. Text represents what was visible, **not spoken audio**. Pair a separate audio transcript with the timestamps.
@@ -102,7 +127,7 @@ Excluded marks remain recoverable. **Exclude all** grays them out; **Remove excl
 - **Open frames folder:** available as soon as extraction finishes, while OCR continues.
 - **AI flag:** optional `__AI` filenames, a copyable enhancement prompt, and a ZIP for manual upload to the AI you choose. TransVision makes no LLM API calls.
 
-Exports go into a folder named after the video under `output`. Existing exports are kept; another run gets a new numbered folder. Review edits autosave in `session.json`.
+Exports go into the chosen export folder. Existing exports are kept; another run gets a new numbered folder. Review edits autosave in `session.json` in the review folder.
 
 ```powershell
 # Open a video at the preparation stage
@@ -197,4 +222,4 @@ The app serves only on loopback and uses a temporary local token. Do not expose 
 
 ## Application folders
 
-The root contains README, the Windows setup/start shortcuts and required license notices. Application code is in src/, browser assets in web/, the camera-filter model and its license in models/, and installation dependencies in setup/requirements.txt. This manual is in docs/. Generated exports go into output/; original recordings remain untouched.
+The root contains README, the Windows setup/start shortcuts and required license notices. Application code is in src/, browser assets in web/, the camera-filter model and its license in models/, and installation dependencies in setup/requirements.txt. This manual is in docs/. Generated exports go into your chosen destination (initially output/); original recordings remain untouched.

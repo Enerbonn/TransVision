@@ -782,7 +782,8 @@ def finalize(session, markers, report, recorder=None):
     if not selected:
         raise ValueError("Include at least one frame before running OCR.")
     folder = unique_folder(
-        Path(session["folder"]) / "exports", Path(session["video"]).stem
+        session.get("export_root") or Path(session["folder"]) / "exports",
+        Path(session["video"]).stem
     )
     cap = cv2.VideoCapture(session["video"])
     if not cap.isOpened():

@@ -1271,3 +1271,11 @@ textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 @media (max-width: 1000px) { header { flex-wrap: wrap; } .video-name { min-width: 160px; } .detail-controls { flex-wrap: wrap; } }
 @media (max-width: 700px) { .setup { grid-template-columns: 1fr; padding: 28px 18px; } .welcome-preview { display: none; } .setup-card { padding-left: 16px; } header { padding: 10px 14px; gap: 8px; } .brand small, .beta-label { display: none; } .video-name { flex-basis: 100%; order: 5; } .job-status { flex-wrap: wrap; padding: 10px 14px; } #statusText { flex: 1; min-width: 140px; } #detailCount { font-size: 22px; } footer .footer-actions { flex-wrap: wrap; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+/* Export preferences are shared by single-video and batch processing. */
+.export-dialog { width: min(620px, calc(100vw - 32px)); }
+.export-dialog form { display: grid; gap: 14px; }
+.export-dialog h2 { margin: 0; }
+.export-path-row { display: flex; gap: 10px; align-items: center; }
+.export-path-row input { flex: 1; min-width: 0; }
+.destination-path { overflow-wrap: anywhere; }
+.export-dialog small { opacity: .8; }

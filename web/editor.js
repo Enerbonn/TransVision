@@ -1007,8 +1007,10 @@ $("exportSelection").onclick = () => {
 };
 $("run").onclick = guard(async () => {
   error("");
+  const exportRoot = await chooseExportDestination();
+  if (!exportRoot) return;
   clearTimeout(saveTimer);
-  await api("/api/finalize", reviewPayload());
+  await api("/api/finalize", { ...reviewPayload(), export_root: exportRoot });
   dirty = false;
   busy = true;
   renderMarks();
@@ -1018,8 +1020,10 @@ $("run").onclick = guard(async () => {
 });
 $("runPDF").onclick = guard(async () => {
   error("");
+  const exportRoot = await chooseExportDestination();
+  if (!exportRoot) return;
   clearTimeout(saveTimer);
-  await api("/api/pdf", reviewPayload());
+  await api("/api/pdf", { ...reviewPayload(), export_root: exportRoot });
   dirty = false;
   busy = true;
   clearTimeout(pollTimer);

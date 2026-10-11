@@ -26,6 +26,7 @@ from src.boundaries import final_frames
 from src.cancellation import JobCancelled, cancellable, check_cancel
 from src.content import optimize_markers, suggest_roi, validate_roi
 from src.diagnostics import TestRecorder
+from src.export_location import ExportLocation
 from src.ocr import available_engines
 from src.pdf_export import export_pdf_parts
 from src.pipeline import (
@@ -47,7 +48,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Application:
-    def __init__(self, out_dir, session_path=None, batch_path=None):
+    def __init__(self, out_dir, session_path=None, batch_path=None, preferences_path=None):
         self.out_dir = Path(out_dir).resolve()
         self.token = secrets.token_urlsafe(32)
         self.lock = threading.RLock()
@@ -64,6 +65,10 @@ class Application:
         self.recorder = None
         self.batch = BatchQueue(
             batch_path or ROOT / ".local/batch-queue.json", self.out_dir
+        )
+        self.export_location = ExportLocation(
+            preferences_path or self.batch.path.parent / "export-preferences.json",
+            self.out_dir,
         )
         self.state = {
             "phase": "idle",
@@ -572,7 +577,10 @@ def handler_for(app):
             query = parse_qs(parsed.query)
             if route == "/":
                 return self.send_bytes(app.html().encode(), "text/html; charset=utf-8")
-            if route in ("/editor.js", "/editor.css", "/selection.js", "/batch.js"):
+            if route in (
+                "/editor.js", "/editor.css", "/selection.js", "/batch.js",
+                "/export-location.js",
+            ):
                 return self.serve_file(ROOT / "web" / route[1:])
             if route == "/app-preview.png":
                 return self.serve_file(ROOT / "web/assets/app-preview.png")
@@ -594,6 +602,8 @@ def handler_for(app):
                 )
             if route == "/api/batch":
                 return self.respond(app.batch.snapshot())
+            if route == "/api/export-settings":
+                return self.respond(app.export_location.snapshot())
             if route == "/api/batch/file":
                 try:
                     job = next(
@@ -668,6 +678,27 @@ def handler_for(app):
                     raise ValueError("Invalid request size.")
                 data = json.loads(self.rfile.read(length))
                 route = urlparse(self.path).path
+                if route == "/api/export-settings":
+                    with app.lock:
+                        result = app.export_location.save(
+                            data.get("folder"), data.get("mode")
+                        )
+                    return self.respond(result)
+                if route == "/api/export-folder/browse":
+                    import tkinter as tk
+                    from tkinter import filedialog
+
+                    picker = tk.Tk()
+                    picker.withdraw()
+                    picker.attributes("-topmost", True)
+                    try:
+                        path = filedialog.askdirectory(
+                            title="Choose an export folder",
+                            initialdir=app.export_location.snapshot()["folder"],
+                        )
+                    finally:
+                        picker.destroy()
+                    return self.respond({"path": path})
                 if route == "/api/stop":
                     return self.respond(app.stop())
                 if route == "/api/reset":
@@ -699,6 +730,8 @@ def handler_for(app):
                             raise ValueError(
                                 "Wait for the current editor job to finish."
                             )
+                        destination = app.export_location.resolve(data.get("export_root"))
+                        app.batch.set_output_root(destination)
                         app.batch.start()
                     return self.respond({"ok": True})
                 if route == "/api/batch/pause":
@@ -1054,6 +1087,10 @@ def handler_for(app):
                         session.pop("detail_sensitivity", None)
                         app.write_review()
                         snapshot = copy.deepcopy(session)
+                        if route in ("/api/finalize", "/api/pdf"):
+                            snapshot["export_root"] = str(
+                                app.export_location.resolve(data.get("export_root"))
+                            )
                         if route == "/api/detail":
 
                             def detail():

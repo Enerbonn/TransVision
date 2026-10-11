@@ -8,6 +8,11 @@ async function refreshBatch() {
   clearTimeout(batchPollTimer);
   try {
     const state = await api("/api/batch");
+    const preference = await api("/api/export-settings");
+    $("batchDestination").textContent = state.running
+      ? `This run: ${state.output_root}`
+      : `Next run: ${preference.folder}${preference.mode === "ask" || !preference.configured ? " · choose before starting" : ""}`;
+    $("batchExportSettings").disabled = state.running;
     $("batchRows").replaceChildren();
     const counts = {};
     for (const job of state.jobs) {
@@ -63,7 +68,11 @@ $("enqueueBatch").onclick = () => batchAction(() => api("/api/batch/enqueue", {
     max_pdf_pages: Number($("batchMaxPages").value),
     pdf_timestamps: $("batchTimestamps").checked, slides_only: $("batchSlides").checked },
 }));
-$("startBatch").onclick = () => batchAction(() => api("/api/batch/start", {}));
+$("startBatch").onclick = () => batchAction(async () => {
+  const destination = await chooseExportDestination();
+  if (destination) await api("/api/batch/start", { export_root: destination });
+});
+$("batchExportSettings").onclick = () => batchAction(() => editExportPreference());
 $("pauseBatch").onclick = () => batchAction(() => api("/api/batch/pause", {}));
 $("retryBatch").onclick = () => batchAction(() => api("/api/batch/retry", {}));
 $("openBatchFolder").onclick = () => batchAction(() => api("/api/batch/open-folder", {}));
