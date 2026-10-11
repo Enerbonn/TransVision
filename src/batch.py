@@ -79,34 +79,70 @@ def presentation_content(image, face_detector=None):
     return True
 
 
+class FrameDecodingError(ValueError):
+    """Reference frames could not be decoded, rather than lacking slide content."""
+
+
+class NoSlideDetectedError(ValueError):
+    """Decoded reference frames did not pass the visual presentation checks."""
+
+
 def crop_reference(video, metadata, seconds):
+    if not math.isfinite(seconds) or seconds < 0:
+        raise ValueError("Crop reference time must be zero or greater.")
+    fps, count = metadata["fps"], metadata["frame_count"]
+    duration = min(metadata.get("duration", count / fps), count / fps)
+    candidates = []
+    seen = set()
+    for offset in (0, 5, 30, 120, 300):
+        value = seconds + offset
+        if value >= duration:
+            continue
+        index = round(value * fps)
+        if not 0 <= index < count or index in seen:
+            continue
+        seen.add(index)
+        candidates.append(index)
+    if not candidates:
+        raise NoSlideDetectedError(
+            "No crop-reference timestamps fall within this video. Choose an earlier reference time."
+        )
     cap = cv2.VideoCapture(str(video))
+    decoded = 0
+    failed = 0
     try:
-        for value in dict.fromkeys(
-            [
-                seconds,
-                max(seconds, 30),
-                max(seconds, 60),
-                max(seconds, 120),
-                max(seconds, 300),
-            ]
-        ):
-            index = min(metadata["frame_count"] - 1, round(value * metadata["fps"]))
-            cap.set(cv2.CAP_PROP_POS_FRAMES, index)
-            ok, image = cap.read()
-            if not ok:
+        if not cap.isOpened():
+            raise FrameDecodingError(
+                "Cannot open the video for automatic crop detection. Check its path and codec."
+            )
+        for index in candidates:
+            check_cancel()
+            try:
+                sought = cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+                ok, image = cap.read() if sought else (False, None)
+                exact = ok and int(round(cap.get(cv2.CAP_PROP_POS_FRAMES))) - 1 == index
+            except cv2.error:
+                ok, image, exact = False, None, False
+            if not ok or image is None or not image.size or not exact:
+                failed += 1
                 continue
-            roi = suggest_roi(image)
+            decoded += 1
+            roi = validate_roi(
+                suggest_roi(image), metadata["width"], metadata["height"]
+            )
             x, y, w, h = roi
-            if roi != [
-                0,
-                0,
-                metadata["width"],
-                metadata["height"],
-            ] and presentation_content(image[y : y + h, x : x + w]):
-                return roi, index / metadata["fps"]
-        raise ValueError(
-            "No reliable slide crop found. Set a per-video crop before unattended export."
+            # A valid slide can already fill the entire frame. Full frame is not
+            # evidence of detector failure; evaluate its visual content too.
+            if presentation_content(image[y : y + h, x : x + w]):
+                return roi, index / fps
+        if not decoded:
+            raise FrameDecodingError(
+                f"Could not decode any of the {failed} crop-reference frames. Check the video codec or retry."
+            )
+        detail = f" {failed} reference frame(s) could not be decoded." if failed else ""
+        raise NoSlideDetectedError(
+            "No slide detected in the decoded crop-reference frames. Select a crop manually or change the reference time."
+            + detail
         )
     finally:
         cap.release()
@@ -176,6 +212,12 @@ class BatchQueue:
                         "added_at": stamp(),
                         "completed_at": None,
                         "content_roi": entry.get("content_roi"),
+                        "crop_source": "manual"
+                        if entry.get("content_roi") is not None
+                        else "automatic",
+                        "requested_reference_seconds": entry.get(
+                            "reference_seconds", config["crop_reference_seconds"]
+                        ),
                         "crop_reference_seconds": entry.get(
                             "reference_seconds", config["crop_reference_seconds"]
                         ),
@@ -290,19 +332,36 @@ class BatchQueue:
         try:
             check_cancel()
             self.update(
-                job_id, status="scanning", error=None, message="Preparing slide crop"
+                job_id,
+                status="scanning",
+                error=None,
+                error_kind=None,
+                message="Preparing slide crop",
             )
             metadata = prepare_video(job["video"])
-            if job.get("content_roi"):
+            initial_reference = job.get(
+                "requested_reference_seconds", job["crop_reference_seconds"]
+            )
+            manual_crop = (
+                job.get("content_roi") is not None
+                and job.get("crop_source") != "automatic"
+            )
+            if manual_crop:
                 roi = validate_roi(
                     job["content_roi"], metadata["width"], metadata["height"]
                 )
-                reference = job["crop_reference_seconds"]
+                reference = initial_reference
             else:
                 roi, reference = crop_reference(
-                    job["video"], metadata, job["crop_reference_seconds"]
+                    job["video"], metadata, initial_reference
                 )
-            self.update(job_id, content_roi=roi, crop_reference_seconds=reference)
+            self.update(
+                job_id,
+                content_roi=roi,
+                crop_reference_seconds=reference,
+                requested_reference_seconds=initial_reference,
+                crop_source="manual" if manual_crop else "automatic",
+            )
             # Resume a completed scan if an export was interrupted.
             path = job.get("session_path")
             if path and Path(path).is_file():
@@ -407,6 +466,7 @@ class BatchQueue:
                 job_id,
                 status="failed",
                 error=str(exc),
+                error_kind=type(exc).__name__,
                 message=str(exc),
                 completed_at=stamp(),
             )
@@ -419,7 +479,13 @@ class BatchQueue:
         state = self.snapshot()
         for job in state["jobs"]:
             if job["status"] == "failed":
-                job.update(status="queued", progress=0, error=None, completed_at=None)
+                job.update(
+                    status="queued",
+                    progress=0,
+                    error=None,
+                    error_kind=None,
+                    completed_at=None,
+                )
         self.write(state)
 
     def review_exported(self, session):
