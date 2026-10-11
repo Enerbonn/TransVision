@@ -7,6 +7,7 @@ import json
 import math
 import os
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,6 +22,7 @@ from src.pdf_export import export_pdf
 from src.pdf_parts import split_pdf
 from src.pipeline import detect, finalize, prepare_video, save_json
 from src.selection import CameraFilter, apply_sensitivity, validate_sensitivity
+from src.motion import VERSION as MOTION_VERSION, validate_motion_mode
 
 
 def stamp():
@@ -58,6 +60,7 @@ def settings(value):
         "sample_seconds": interval,
         "ocr_profile": profile,
         "max_pdf_pages": max_pages,
+        "motion_mode": validate_motion_mode(value.get("motion_mode", "summary")),
     }
 
 
@@ -334,6 +337,7 @@ class BatchQueue:
     def process(self, job, config):
         output_root = Path(job.get("output_root", self.output_root))
         job_id = job["id"]
+        job_started = time.perf_counter()
 
         def report(message, progress=0, **details):
             check_cancel()
@@ -381,7 +385,8 @@ class BatchQueue:
             )
             # Resume a completed scan if an export was interrupted.
             path = job.get("session_path")
-            if path and Path(path).is_file():
+            resumed_scan = bool(path and Path(path).is_file())
+            if resumed_scan:
                 session = json.loads(Path(path).read_text(encoding="utf-8"))
             else:
                 session = detect(
@@ -401,9 +406,22 @@ class BatchQueue:
                 ocr_profile=config["ocr_profile"],
                 export_cropped=True,
                 export_root=str(output_root),
+                motion_mode=config.get("motion_mode", "summary"),
             )
+            if resumed_scan and any(m.get("visual_analysis", {}).get("motion", {}).get("version") != MOTION_VERSION
+                   for m in session["markers"] if m.get("kind") != "manual"):
+                from src.selection import analyze_selection
+                analysis_started = time.perf_counter()
+                session["markers"] = analyze_selection(
+                    session, session["markers"], roi, report,
+                    analysis_paths={int(k): v for k, v in session.get("candidate_paths", {}).items()},
+                    analysis_cropped=bool(session.get("candidate_cache_cropped")),
+                )
+                self.update(job_id, analysis_seconds=round(time.perf_counter()-analysis_started,3))
+            session["motion_analysis_version"] = MOTION_VERSION
             markers, stats = apply_sensitivity(
-                session["markers"], config["sensitivity"], config["hide_camera"]
+                session["markers"], config["sensitivity"], config["hide_camera"],
+                session["motion_mode"],
             )
             non_slide = 0
             if config["slides_only"]:
@@ -440,6 +458,7 @@ class BatchQueue:
                 )
                 return
             self.update(job_id, status="exporting", progress=0)
+            export_started = time.perf_counter()
             output_root.mkdir(parents=True, exist_ok=True)
             outputs = []
             if config["task"] in ("pdf", "both"):
@@ -469,6 +488,9 @@ class BatchQueue:
                 message="Export complete",
                 outputs=outputs,
                 completed_at=stamp(),
+                export_seconds=round(time.perf_counter()-export_started,3),
+                elapsed_seconds=round(time.perf_counter()-job_started,3),
+                reused_scan=resumed_scan,
             )
         except JobCancelled:
             self.update(

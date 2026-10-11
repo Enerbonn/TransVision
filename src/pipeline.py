@@ -27,6 +27,7 @@ from src.content import (
     validate_roi,
 )
 from src.ocr import available_engines, read_image, readable_text
+from src.motion import VERSION as MOTION_VERSION
 from src.utils.hardware import detect_hardware
 from src.video.burst_grouper import group_bursts
 from src.video.frame_extractor import extract_frames
@@ -628,7 +629,8 @@ def detect_adaptive(
         },
     )
     markers, stats = apply_sensitivity(markers, 50, hide_camera)
-    session.update(markers=markers, selection_analysis_roi=roi, optimization=stats)
+    session.update(markers=markers, selection_analysis_roi=roi, optimization=stats,
+                   motion_analysis_version=MOTION_VERSION, motion_mode="summary")
     if recorder:
         recorder.stage("selection_analysis", time.perf_counter() - stage, **stats)
         session["test_folder"] = str(recorder.folder)

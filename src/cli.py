@@ -27,6 +27,7 @@ def main():
     )
     parser.add_argument("--task", choices=["pdf", "ocr", "both"], default="pdf")
     parser.add_argument("--sensitivity", type=int, default=50)
+    parser.add_argument("--motion-mode", choices=["summary", "demo"], default="summary")
     parser.add_argument("--review-first", action="store_true")
     parser.add_argument("--retry-failed", action="store_true")
     args = parser.parse_args()
@@ -39,6 +40,7 @@ def main():
             {
                 "task": args.task,
                 "sensitivity": args.sensitivity,
+                "motion_mode": args.motion_mode,
                 "automatic_export": not args.review_first,
             },
         )

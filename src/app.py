@@ -27,6 +27,7 @@ from src.cancellation import JobCancelled, cancellable, check_cancel
 from src.content import optimize_markers, suggest_roi, validate_roi
 from src.diagnostics import TestRecorder
 from src.export_location import ExportLocation
+from src.motion import VERSION as MOTION_VERSION, validate_motion_mode
 from src.ocr import available_engines
 from src.pdf_export import export_pdf_parts
 from src.pipeline import (
@@ -306,6 +307,7 @@ class Application:
             .read_text(encoding="utf-8")
             .replace("__SERVER__", self.base_url)
             .replace("__TOKEN__", self.token)
+            .replace("__MOTION_VERSION__", str(MOTION_VERSION))
         )
 
     def stop(self):
@@ -674,7 +676,7 @@ def handler_for(app):
                 return self.respond({"error": "Invalid local session."}, 403)
             try:
                 length = int(self.headers.get("Content-Length", 0))
-                if not 0 < length <= 8000000:
+                if not 0 < length <= 32 * 1024 * 1024:
                     raise ValueError("Invalid request size.")
                 data = json.loads(self.rfile.read(length))
                 route = urlparse(self.path).path
@@ -1002,6 +1004,9 @@ def handler_for(app):
                         sensitivity = validate_sensitivity(
                             data.get("sensitivity", session_sensitivity(session))
                         )
+                        motion_mode = validate_motion_mode(
+                            data.get("motion_mode", session.get("motion_mode", "summary"))
+                        )
                         if route in ("/api/finalize", "/api/pdf") and not any(
                             m["included"] for m in markers
                         ):
@@ -1077,6 +1082,7 @@ def handler_for(app):
                         session["ocr_profile"] = profile
                         session.update(
                             sensitivity=sensitivity,
+                            motion_mode=motion_mode,
                             hide_camera=bool(
                                 data.get(
                                     "hide_camera", session.get("hide_camera", True)
@@ -1095,7 +1101,7 @@ def handler_for(app):
 
                             def detail():
                                 analyzed = markers
-                                if snapshot.get("selection_analysis_roi") != roi or any(
+                                if snapshot.get("motion_analysis_version") != MOTION_VERSION or snapshot.get("selection_analysis_roi") != roi or any(
                                     "visual_analysis" not in m
                                     and not (
                                         m.get("user_override")
@@ -1144,6 +1150,7 @@ def handler_for(app):
                                     analyzed,
                                     sensitivity,
                                     snapshot["hide_camera"],
+                                    snapshot["motion_mode"],
                                 )
                                 app.record("sensitivity_changed", **stats)
                                 app.report(
@@ -1155,6 +1162,7 @@ def handler_for(app):
                                     "optimization": stats,
                                     "selection_analysis_roi": roi,
                                     "analysis_pending": False,
+                                    "motion_analysis_version": MOTION_VERSION,
                                 }
 
                             app.launch("optimizing", detail)

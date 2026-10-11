@@ -40,9 +40,11 @@ def sensitivity_threshold(value):
     return middle * (0.0003 / middle) ** ((value - 50) / 50)
 
 
-def apply_sensitivity(markers, sensitivity=50, hide_camera=True):
+def apply_sensitivity(markers, sensitivity=50, hide_camera=True, motion_mode="summary"):
     """Monotonic detail selection over cached candidates, without video decoding."""
     sensitivity = validate_sensitivity(sensitivity)
+    from src.motion import effective_analysis, validate_motion_mode
+    validate_motion_mode(motion_mode)
     result = copy.deepcopy(markers)
     groups = {}
     for mark in result:
@@ -50,10 +52,13 @@ def apply_sensitivity(markers, sensitivity=50, hide_camera=True):
         # Protected manual/AI marks need no analysis to retain the user's choice.
         if mark.get("user_override") or mark.get("kind") == "manual" or mark.get("ai"):
             continue
-        analysis = mark.get("visual_analysis")
+        analysis = effective_analysis(mark, motion_mode) if mark.get("visual_analysis") else None
         if not analysis:
             raise ValueError("Analyze this review first to preview sensitivity.")
         mark["included"] = False
+        if analysis.get("suppressed"):
+            mark["detail_excluded"] = analysis.get("reason", "repeated content")
+            continue
         if hide_camera and analysis.get("camera"):
             mark["detail_excluded"] = "camera"
             continue
@@ -61,17 +66,18 @@ def apply_sensitivity(markers, sensitivity=50, hide_camera=True):
     threshold = sensitivity_threshold(sensitivity)
     for group in groups.values():
         group.sort(key=lambda m: m["frame_idx"])
-        eligible = [m for m in group if not m["visual_analysis"].get("noise")]
+        eligible = [m for m in group if not effective_analysis(m, motion_mode).get("noise")]
         # A trailing cursor-only/no-change candidate must not replace useful content.
         final = (eligible or group)[-1]
         keep = {final["frame_idx"]}
+        keep.update(m["frame_idx"] for m in group if effective_analysis(m, motion_mode).get("force_keep"))
         if sensitivity:
             keep.update(m["frame_idx"] for m in eligible
-                        if sensitivity == 100 or m["visual_analysis"].get("changed_fraction", 0) >= threshold)
+                        if sensitivity == 100 or effective_analysis(m, motion_mode).get("changed_fraction", 0) >= threshold)
         for mark in group:
             mark["included"] = mark["frame_idx"] in keep
             if not mark["included"]:
-                mark["detail_excluded"] = ("pointer/no change" if mark["visual_analysis"].get("noise")
+                mark["detail_excluded"] = (effective_analysis(mark, motion_mode).get("reason", "pointer/no change") if effective_analysis(mark, motion_mode).get("noise")
                                            else "earlier writing step")
     return result, {
         "included": sum(bool(m.get("included", True)) for m in result),
@@ -124,7 +130,7 @@ def thumbnail(image):
 def difference(a, b):
     changed = (cv2.absdiff(a, b) > 25).astype(np.uint8)
     _, _, stats, _ = cv2.connectedComponentsWithStats(changed)
-    significant = stats[1:][stats[1:, cv2.CC_STAT_AREA] >= 10]
+    significant = stats[1:][stats[1:, cv2.CC_STAT_AREA] >= 6]
     total = int(sum(significant[:, cv2.CC_STAT_AREA])) if len(significant) else 0
     compact = bool(
         len(significant) <= 4
@@ -140,7 +146,7 @@ def difference(a, b):
         centers = significant[:, :2] + significant[:, 2:4] / 2
         spread = float(np.linalg.norm(centers.max(axis=0) - centers.min(axis=0)))
     noise = (
-        fraction < 0.0002
+        fraction < 0.0002 and not len(significant)
         or compact
         and len(significant) > 1
         and spread > 30
@@ -233,6 +239,9 @@ def analyze_selection(
     cap = cv2.VideoCapture(session["video"])
     result = []
     previous = None
+    from src.motion import GrayCache
+    motion_images = GrayCache()
+    motion_circles = []
     group = -1
     was_camera = False
     exported = {
@@ -282,6 +291,9 @@ def analyze_selection(
                 else camera.check(image)
             )
             current = thumbnail(image)
+            motion_images.append(current)
+            from src.motion import circle_candidates
+            motion_circles.append(np.packbits(circle_candidates(image)))
             d = (
                 difference(previous, current)
                 if previous is not None
@@ -317,4 +329,5 @@ def analyze_selection(
                 )
     finally:
         cap.release()
-    return result
+    from src.motion import annotate_motion
+    return annotate_motion(result, motion_images, session["fps"], report, motion_circles)

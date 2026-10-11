@@ -64,6 +64,7 @@ $("closeBatch").onclick = () => { $("batchDialog").close(); clearTimeout(batchPo
 $("enqueueBatch").onclick = () => batchAction(() => api("/api/batch/enqueue", {
   videos: $("batchPaths").value.split(/\r?\n/).map((s) => s.trim()).filter(Boolean),
   settings: { task: $("batchTask").value, sensitivity: Number($("batchSensitivity").value),
+    motion_mode: $("batchMotionMode").value,
     crop_reference_seconds: Number($("batchReference").value), automatic_export: $("batchAuto").checked,
     max_pdf_pages: Number($("batchMaxPages").value),
     pdf_timestamps: $("batchTimestamps").checked, slides_only: $("batchSlides").checked },

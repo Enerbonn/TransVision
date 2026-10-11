@@ -32,6 +32,31 @@ Completed exports are retained. Interrupted exports may leave partial files and 
 
 No images are uploaded automatically and TransVision does not call a paid LLM API. Your chosen LLM may have attachment/context limits; send smaller chronological groups if necessary. **AI_UPLOAD.zip** is an optional bundle of the transcript, prompt and flagged images, for services that accept ZIP files. If no frames were marked, AI-marked is absent and the prompt explains that there are no flagged images.
 
+## Movement and repeated animation
+
+**Summarize movement** is the default. It compares content after accounting for
+shifts and zooming, groups repeating motion, and keeps views that reveal new areas.
+New writing is tracked separately from motion; when detected new ink disappears,
+a previous frame can be kept with its original timestamp. Temporary dark overlays
+are suppressed only when the clear underlying view returns shortly afterward.
+
+**Capture demonstration changes** keeps more distinct application/layout states
+and animation phases. Repeated recognized animation phases are still suppressed.
+Use it when movement itself matters, such as a software demonstration. Disable
+**Light slides only** in batches if the useful content is dark or is not a slide.
+
+Movement is separate from the 0–100 sensitivity slider and is available for both
+single-video review and batch jobs. Changing it uses cached analysis, so frame
+counts update without rescanning. Older saved reviews are analyzed once when
+opened. Hover over a frame to see its selection reason. Manual and AI-marked
+choices remain protected; automatically excluded candidates are recoverable.
+
+This is a visual comparison, not a text-recognition or meaning-understanding
+system. It works in PDF-only mode without OCR. Uncertain views may remain,
+especially during fast transitions, complex moving scenes, or unreliable
+alignment. Brief changes between scan samples can still be missed. Review
+important exports, and use shorter scan intervals or manual marks when needed.
+
 ## Export names and folders
 
 Click **Export folder** to choose where PDF and OCR exports are saved. On your first

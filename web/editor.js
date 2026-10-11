@@ -407,7 +407,7 @@ function renderTimelineMarks() {
         : m.ai
           ? "AI"
           : "●";
-    b.title = `${fmt(m.timestamp_s)} — ${KIND[m.kind]}${m.ai ? " | AI" : ""}`;
+    b.title = `${fmt(m.timestamp_s)} — ${KIND[m.kind]}${m.ai ? " | AI" : ""}${m.visual_analysis?.motion?.[session?.motion_mode || "summary"]?.reason ? " | " + m.visual_analysis.motion[session?.motion_mode || "summary"].reason : ""}`;
     b.onclick = () => seek(m.frame_idx);
     lane.append(b);
   }
@@ -504,6 +504,8 @@ function loadSession(s) {
   $("scanInterval").value = String(s.sample_seconds ?? 0.5);
   $("scanHideCamera").checked = s.hide_camera !== false;
   $("detailSensitivity").value = TransVisionSelection.sensitivity(s);
+  $("motionMode").value = s.motion_mode || "summary";
+  if (!s.preflight && s.motion_analysis_version !== config.motionVersion) s.analysis_pending = true;
   $("detailHideCamera").checked = s.hide_camera !== false;
   detailLabels();
   document.body.classList.toggle("preflight-mode", !!s.preflight);
@@ -1097,6 +1099,7 @@ function reviewPayload() {
     ocr_second_pass: session?.ocr_second_pass ?? false,
     pdf_timestamps: session?.pdf_timestamps ?? true,
     sensitivity: Number($("detailSensitivity").value),
+    motion_mode: $("motionMode").value,
     hide_camera: session?.preflight
       ? $("scanHideCamera").checked
       : $("detailHideCamera").checked,
@@ -1106,6 +1109,7 @@ function reviewPayload() {
 function detailLabels() {
   $("detailValue").textContent = $("detailSensitivity").value;
   $("detailSensitivity").disabled = busy;
+  $("motionMode").disabled = busy;
   $("detailCount").textContent = detailPending
     ? "Analyzing available frames…"
     : `${selected().length.toLocaleString()} / ${markers.length.toLocaleString()} frames`;
@@ -1118,10 +1122,11 @@ function detailChanged() {
   clearTimeout(detailAnalysisTimer);
   session.sensitivity = Number($("detailSensitivity").value);
   session.hide_camera = $("detailHideCamera").checked;
+  session.motion_mode = $("motionMode").value;
   try {
     if (session.analysis_pending || JSON.stringify(session.selection_analysis_roi) !== JSON.stringify(session.content_roi))
       throw new Error("Analysis required");
-    markers = TransVisionSelection.select(markers, session.sensitivity, session.hide_camera);
+    markers = TransVisionSelection.select(markers, session.sensitivity, session.hide_camera, session.motion_mode);
     detailPending = false;
     dirty = true;
     detailLabels();
@@ -1143,6 +1148,7 @@ function detailChanged() {
   }), 150);
 }
 $("detailSensitivity").oninput = detailChanged;
+$("motionMode").onchange = detailChanged;
 $("detailSensitivity").onpointerup = () => {
   const value = Number($("detailSensitivity").value);
   const stop = [0, 50, 100].find((n) => Math.abs(value - n) <= 3);

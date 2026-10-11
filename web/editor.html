@@ -106,6 +106,7 @@
         </div><label
           ><input id="detailHideCamera" type="checkbox" checked />Exclude camera
           views</label
+        ><label>Movement<select id="motionMode"><option value="summary">Summarize movement</option><option value="demo">Capture demonstration changes</option></select></label
         ><strong id="detailCount" role="status" aria-live="polite"></strong
         ><details class="inline-help"><summary>Selection help</summary><p>Counts update instantly. Manual and AI choices are preserved. Sensitivity cannot recover changes missed during scanning.</p></details>
       </section>
@@ -409,6 +410,7 @@
       <div class="batch-settings">
         <label>Export<select id="batchTask"><option value="pdf">PDF only</option><option value="ocr">OCR only</option><option value="both">PDF + OCR</option></select></label>
         <label>Sensitivity <input id="batchSensitivity" type="number" min="0" max="100" step="1" value="50" /></label>
+        <label>Movement<select id="batchMotionMode"><option value="summary">Summarize movement</option><option value="demo">Capture demonstration changes</option></select></label>
         <label>Crop reference (seconds) <input id="batchReference" type="number" min="0" value="5" /></label>
         <label>Maximum pages per PDF <input id="batchMaxPages" type="number" min="1" max="100" step="1" value="100" /></label>
         <label><input id="batchAuto" type="checkbox" checked />Automatically export without review</label>
@@ -434,7 +436,7 @@
       </form>
     </dialog>
     <script>
-      window.FRAMEREAD = { server: "__SERVER__", token: "__TOKEN__" };
+      window.FRAMEREAD = { server: "__SERVER__", token: "__TOKEN__", motionVersion: __MOTION_VERSION__ };
     </script>
     <script src="__SERVER__/selection.js"></script>
     <script src="__SERVER__/editor.js"></script>

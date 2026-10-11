@@ -9,6 +9,7 @@ from src.cancellation import check_cancel
 from src.content import crop_image
 from src.selection import CameraFilter, difference, thumbnail
 from src.video.frame_extractor import ExtractedFrame
+from src.motion import ScanMotionGuard
 
 
 def extract_adaptive(
@@ -29,6 +30,7 @@ def extract_adaptive(
     cap = cv2.VideoCapture(str(video))
     refiner = cv2.VideoCapture(str(video))
     camera = CameraFilter()
+    motion_guard = ScanMotionGuard()
     records = []
     seen = set()
     step = max(1, round(fps * sample_seconds))
@@ -119,6 +121,8 @@ def extract_adaptive(
             )
             timings["comparison_s"] += time.perf_counter() - t
             timings["compared_frames"] += 1
+            if not is_camera:
+                d = motion_guard.check(current, d)
             if prev is None:
                 save(idx, image, "opening", camera=bool(is_camera))
                 anchor = current
