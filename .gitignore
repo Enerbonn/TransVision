@@ -1,0 +1,54 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+node_modules/
+output/
+test_runs/
+qa/
+.local/
+release/
+*.mp4
+*.mkv
+*.mov
+*.avi
+*.webm
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local tooling/cache and private study sources
+.ruff_cache/
+.mypy_cache/
+*.partial.pdf
+*.worker.json
+*.pause
+*.stop
+
+# Recordings and private generated media
+*.mp3
+*.wav
+*.m4a
+*.flac
+*.srt
+*.vtt
+
+# Local regression suite; omitted from distributed application
+/tests/
+
+# Maintainer-only files; kept locally, excluded from user distribution
+/dev/
+/.github/
+/.gitattributes
+/docs/CONTRIBUTING.md
+/docs/VERIFICATION.md

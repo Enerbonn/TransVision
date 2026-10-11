@@ -1,0 +1,22 @@
+TransVision
+Copyright 2026 Irvin John Parulan
+
+This software is a derivative of FrameRead by pr1hm (formerly s-pra1ham):
+https://github.com/pr1hm/FrameRead
+Original repository URL: https://github.com/s-pra1ham/FrameRead
+FrameRead is licensed under the Apache License, Version 2.0.
+The included LICENSE retains those terms. Original authors retain their rights.
+
+Modified components and purpose: scene extraction, configuration, hardware/logging
+helpers, and integration were adapted into a local, human-reviewed visual-note
+editor with timestamped PNG, PDF and OCR exports. Audio transcription, local LLM
+synthesis and Qwen-based analysis from the original direction are not included.
+New editor, crop/trim workflow, adaptive sampler, review/detail controls, diagnostic
+recorder and export orchestration were developed for TransVision.
+
+OpenCV YuNet face detector:
+https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet
+The bundled model is MIT-licensed; see models/YUNET-LICENSE.txt.
+
+The maroon/gold palette is inspired by academic lecture materials and PUP colors.
+TransVision is an independent student project, not an official PUP product.

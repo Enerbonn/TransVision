@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>TransVision · Visual transcript editor</title>
+    <link rel="stylesheet" href="__SERVER__/editor.css" />
+    <script>
+      if (location.protocol === "file:") location.replace("__SERVER__");
+    </script>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span class="brand-symbol" aria-hidden="true"><img src="__SERVER__/logo.png" alt="" /></span>
+        <div>
+          <strong>TransVision</strong><small>FRAMES · PDF · OCR</small>
+        </div>
+      </div>
+      <span class="beta-label">Beta 0.1</span
+      ><span id="videoName" class="video-name"
+        >No video selected</span
+      ><button id="themeToggle" class="quiet">Theme: system</button
+      ><button id="newVideo" class="quiet">Choose another video</button>
+      <button id="batchButton" class="primary">Batch queue</button>
+<a class="button quiet" href="__SERVER__/manual" target="_blank" rel="noopener">Manual</a>
+    </header>
+    <section id="setup" class="setup">
+      <div class="setup-card">
+        <span class="eyebrow">TRANSVISION</span>
+        <h1>Choose a recording</h1>
+        <p>
+          Pick the frames you need, then export a PDF or text file.
+        </p>
+        <label for="videoPath">Video recording</label>
+        <div class="path-row">
+          <input
+            id="videoPath"
+            placeholder="Paste a video path, or browse for a recording"
+          /><button id="browse">Browse…</button>
+        </div>
+        <button id="detect" class="primary">Preview video</button
+        ><small>Runs locally · Your original video stays intact.</small>
+        <div class="welcome-workflow">
+          <span>Preview & crop</span><span>Select frames</span
+          ><span>Export</span>
+        </div>
+        <p class="creator-credit">
+          © 2026 Irvin John Parulan
+          <span>Visuals to text.</span>
+        </p>
+      </div>
+<a class="welcome-preview" href="__SERVER__/app-preview.png" target="_blank" rel="noopener" aria-label="View the TransVision editor preview"><img src="__SERVER__/app-preview.png" alt="TransVision editor showing frame selection, sensitivity and timestamped exports" /></a>
+    </section>
+    <div class="job-status" role="status">
+      <span id="phaseLabel">Ready</span
+      ><span id="statusText">Choose a video to begin.</span
+      ><progress id="progress" value="0" max="100"></progress
+      ><span id="etaLabel"></span
+      ><button id="openFrames" hidden>Open frames folder</button
+      ><span id="saveStatus"></span><button id="stopJob" class="stop-button" disabled title="Cancel the current job at the next safe checkpoint">Stop</button>
+    </div>
+    <div id="error" role="alert" hidden></div>
+    <details id="testPanel">
+      <summary>
+        Local diagnostics ·
+        <span id="testStatus">Starts when you choose a video</span>
+      </summary>
+      <div class="test-controls">
+        <button id="openTest">Open test data folder</button
+        ><input
+          id="testNote"
+          placeholder="Observation at current timestamp: missed frame, duplicate, OCR, or lag"
+        /><button id="saveTestNote">Record observation</button
+        ><span id="testNoteStatus"></span>
+      </div>
+      <small id="testPath"></small>
+    </details>
+    <main id="editor" hidden>
+      <section id="scanOptions" class="detail-controls" hidden>
+        <label
+          >Scan interval<select id="scanInterval">
+            <option value="0.25">0.25 sec · finer</option>
+            <option value="0.5" selected>0.5 sec · balanced</option>
+            <option value="1">1 sec · faster</option>
+            <option value="2">2 sec · brief slides may be missed</option>
+          </select></label
+        ><label
+          ><input id="scanHideCamera" type="checkbox" checked />Ignore large
+          camera views</label
+        ><details class="inline-help"><summary>Scan help</summary><p>Shorter intervals capture more detail. Very brief changes may be missed.</p></details>
+      </section>
+      <section id="detailControls" class="detail-controls">
+        <div class="sensitivity-control"><label for="detailSensitivity">Sensitivity
+          <output id="detailValue" for="detailSensitivity">50</output></label><input
+            id="detailSensitivity"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value="50"
+            list="sensitivityStops"
+          /><datalist id="sensitivityStops"><option value="0"></option><option value="50"></option><option value="100"></option></datalist>
+          <div class="sensitivity-stops"><button type="button" data-sensitivity="0">0 · Completed frames</button><button type="button" data-sensitivity="50">50 · Major steps</button><button type="button" data-sensitivity="100">100 · Fine details</button></div>
+        </div><label
+          ><input id="detailHideCamera" type="checkbox" checked />Exclude camera
+          views</label
+        ><strong id="detailCount" role="status" aria-live="polite"></strong
+        ><details class="inline-help"><summary>Selection help</summary><p>Counts update instantly. Manual and AI choices are preserved. Sensitivity cannot recover changes missed during scanning.</p></details>
+      </section>
+      <section id="preflight" hidden>
+        <div>
+          <strong>Prepare your recording</strong
+          ><small
+            >Check the crop. Trim if needed. Then detect frames.</small
+          >
+        </div>
+        <div class="trim-controls">
+          <label
+            >Start<input
+              id="trimStart"
+              value="00:00:00.000"
+              aria-label="Trim start timestamp" /></label
+          ><button id="setTrimStart">Start at current frame</button
+          ><label
+            >End (exclusive)<input
+              id="trimEnd"
+              aria-label="Trim end timestamp" /></label
+          ><button id="setTrimEnd">End after current frame</button
+          ><button id="resetTrim">Whole video</button
+          ><button id="startDetection" class="primary">
+            Start detection →
+          </button>
+        </div>
+        <small id="trimSummary"></small>
+      </section>
+      <div class="workspace">
+        <section class="viewer-panel">
+          <div class="viewer-top">
+            <span id="previewStatus">Source preview</span
+            ><span id="frameInfo"></span
+            ><button id="focusPreview">Focus preview</button
+            ><button id="cropPreview">Presentation preview</button
+            ><button id="stopPreview" class="quiet" title="Unload this video">Stop preview</button><button id="settingsButton">Crop & OCR</button
+            ><label
+              >Preview zoom
+              <select id="previewZoom">
+                <option value="1">Fit</option>
+                <option value="1.5">150%</option>
+                <option value="2">200%</option>
+                <option value="3">300%</option>
+              </select></label
+            >
+          </div>
+          <div class="preview" id="preview">
+            <div id="previewContent">
+              <video id="player" preload="metadata" muted playsinline></video
+              ><img id="still" alt="Current source-video frame" hidden />
+              <div
+                id="contentOverlay"
+                title="Content area used for change detection and OCR"
+              ></div>
+              <div id="areaSelector" hidden></div>
+            </div>
+          </div>
+          <div class="transport">
+            <button id="prevMark" title="Previous mark">|←</button
+            ><button id="backFrame" title="Previous frame (Left arrow)">
+              ← Frame</button
+            ><button id="play" title="Play or pause (Space)">Play</button
+            ><button id="nextFrame" title="Next frame (Right arrow)">
+              Frame →</button
+            ><button id="nextMark" title="Next mark">→|</button
+            ><output id="timecode">00:00:00.000</output
+            ><button id="copyTime" title="Copy current timestamp">
+              Copy time</button
+            ><span id="durationLabel"></span>
+          </div>
+          <div class="scrub-row">
+            <input
+              type="range"
+              id="scrubber"
+              min="0"
+              max="1"
+              step="1"
+              value="0"
+              aria-label="Seek through video"
+            /><input
+              id="jumpTime"
+              placeholder="HH:MM:SS.mmm"
+              aria-label="Jump to timestamp"
+            /><button id="jump">Go</button>
+          </div>
+          <div class="mark-tools">
+            <button id="addMark" class="primary" title="Add current frame (M)">
+              + Mark current frame</button
+            ><button
+              id="flagAI"
+              class="ai-button"
+              title="Flag current frame for AI (A)"
+            >
+              ☆ Mark for AI</button
+            ><button id="optimizeMarks">Check similar marks</button
+            ><button id="finalFrames">Find final frames</button
+            ><button id="undo" class="quiet" title="Ctrl+Z">Undo</button
+            ><button id="redo" class="quiet" title="Ctrl+Y or Ctrl+Shift+Z">
+              Redo
+            </button>
+            <details class="shortcut-help">
+              <summary>Shortcuts</summary>
+              <div class="shortcut-card">
+                <strong>Editor shortcuts</strong>
+                <p>
+                  Space: play / pause<br />← / →: previous / next frame<br />Shift+←
+                  / →: step one second<br />Ctrl+← / →: included checkpoint<br />M:
+                  mark frame · A: toggle AI<br />Delete / Backspace: delete
+                  mark<br />Ctrl+Z: Undo<br />Ctrl+Y / Ctrl+Shift+Z: Redo<br />Wheel:
+                  scroll filmstrip<br />Ctrl+wheel: zoom filmstrip
+                </p>
+                <small>Text fields keep their normal typing shortcuts.</small>
+              </div>
+            </details>
+          </div>
+        </section>
+        <aside class="inspector">
+          <div class="inspector-head">
+            <h2>Frames</h2>
+            <span id="counts"></span>
+          </div>
+          <div class="list-controls">
+            <select id="filter" aria-label="Filter marks">
+              <option value="included">Included</option>
+              <option value="changes">Content changes</option>
+              <option value="all">All marks</option>
+              <option value="ai">AI flagged</option>
+              <option value="duplicates">Similar excluded</option>
+              <option value="excluded">Excluded</option></select
+            ><button id="includeAll" class="quiet">Include all</button
+            ><button id="excludeAll" class="quiet">Exclude all</button
+            ><button id="removeExcluded">Remove excluded</button>
+          </div>
+          <p id="optimizationSummary" class="optimization-summary"></p>
+          <div id="markList" class="mark-list"></div>
+          <div id="activeMark" class="active-mark">
+            <span>Seek to a checkpoint to edit it.</span>
+          </div>
+        </aside>
+      </div>
+      <section class="timeline-section">
+        <div class="timeline-toolbar">
+          <div>
+            <strong>Filmstrip</strong
+            ><span class="legend"
+              ><i class="dot teal"></i> Included
+              <i class="dot amber"></i> AI</span
+            ><label
+              ><input id="showExcluded" type="checkbox" />Show excluded</label
+            >
+          </div>
+          <div class="zoom-controls">
+            <button id="scrollBack" title="Scroll timeline backward">←</button
+            ><button id="scrollForward" title="Scroll timeline forward">
+              →</button
+            ><button id="fitTimeline">Fit</button
+            ><button id="zoomOut" aria-label="Zoom timeline out">−</button
+            ><input
+              id="zoomSlider"
+              type="range"
+              min="0"
+              max="100"
+              value="0"
+              aria-label="Timeline zoom"
+            /><button id="zoomIn" aria-label="Zoom timeline in">+</button
+            ><span id="zoomLabel">1×</span>
+          </div>
+        </div>
+        <div
+          id="timelineWrap"
+          class="timeline-wrap"
+          tabindex="0"
+          aria-label="Scrollable filmstrip. Drag the ruler or use the seek slider."
+        >
+          <div id="timelineTrack" class="timeline-track">
+            <div id="ruler" class="ruler"></div>
+            <div id="filmstrip" class="filmstrip"></div>
+            <div id="markerLane" class="marker-lane"></div>
+            <div id="playhead" class="playhead"></div>
+          </div>
+        </div>
+      </section>
+      <footer>
+        <div>
+          <strong id="selectionSummary">0 selected</strong
+          ><small id="outputHint"
+            >Only selected frames are exported.</small
+          >
+        </div>
+        <div class="footer-actions">
+          <button id="copyMarkedTimes">Copy marked times</button
+          ><button id="saveReview">Save review</button
+          ><button id="exportSelection">Export selection JSON</button
+          ><label class="pdf-option"
+            ><input id="pdfTimestamps" type="checkbox" checked />PDF
+            timestamps</label
+          ><button id="runPDF">Export PDF</button
+          ><button id="run" class="primary">Export OCR</button>
+        </div>
+      </footer>
+      <section id="pdfResults" class="pdf-results" hidden>
+        <strong id="pdfSummary"></strong
+        ><a id="downloadPDF" class="button" download="presentation_frames.pdf"
+          >Download presentation PDF</a
+        ><span id="pdfPartLinks"></span><a id="downloadPageMap" class="button" download="pages.json"
+          >Download page / timestamp map</a
+        >
+        <small>Selected frames · Original-video timestamps · No OCR needed</small>
+      </section>
+      <section id="results" class="results" hidden>
+        <div>
+          <span class="eyebrow">OCR EXPORT READY</span>
+          <h2 id="resultSummary"></h2>
+          <p id="resultPath"></p>
+          <div class="result-actions">
+            <button id="openFolder">Open output folder</button
+            ><a
+              id="downloadText"
+              class="button"
+              download="transcription.txt"
+              >Download transcription.txt</a
+            ><a id="downloadBundle" class="button" download="AI_UPLOAD.zip"
+              >Download AI bundle</a
+            >
+          </div>
+        </div>
+        <div class="prompt-panel">
+          <h3>Correct complex content with AI</h3>
+          <p>
+            Upload <code>transcription.txt</code> and the images in <code>AI-marked/</code> to your LLM with this prompt. <a href="__SERVER__/manual" target="_blank" rel="noopener">Instructions</a>
+          </p>
+          <textarea
+            id="aiPrompt"
+            readonly
+            aria-label="AI enhancement prompt"
+          ></textarea
+          ><button id="copyPrompt">Copy enhancement prompt</button
+          ><span id="copyStatus" role="status"></span>
+        </div>
+      </section>
+    </main>
+    <dialog id="settingsDialog">
+      <div class="dialog-heading">
+        <h2>Content area & OCR</h2>
+        <button id="closeSettings" aria-label="Close settings">×</button>
+      </div>
+      <p>Crop to the content you want to keep.</p>
+      <div class="area-presets">
+        <button id="autoArea">Suggest from current frame</button
+        ><button id="fullArea">Full frame</button
+        ><button id="drawArea">Draw area on preview</button>
+      </div>
+      <small id="cropReference" class="crop-reference"
+        >Seek to a representative frame, then request a fresh suggestion.</small
+      >
+      <div class="area-fields">
+        <label>X<input id="areaX" type="number" min="0" /></label
+        ><label>Y<input id="areaY" type="number" min="0" /></label
+        ><label>Width<input id="areaW" type="number" min="30" /></label
+        ><label>Height<input id="areaH" type="number" min="30" /></label>
+      </div>
+      <label class="setting-row"
+        >OCR engine<select id="ocrEngine">
+          <option value="rapidocr">RapidOCR · English / CPU</option>
+          <option value="tesseract">Tesseract · English fallback</option>
+        </select></label
+      ><label class="setting-row"
+        >Content type<select id="ocrProfile">
+          <option value="auto">Auto · English text + symbol recovery</option>
+          <option value="prose">Plain text · fast English</option>
+          <option value="code">Programming · preserve spacing</option>
+          <option value="math">Equations · draft + image reference</option>
+        </select></label
+      ><label class="setting-row"
+        ><input id="exportCropped" type="checkbox" />Crop exported images to
+        this area (optional)</label
+      ><label class="setting-row"
+        ><input id="secondPass" type="checkbox" />Try a second English OCR pass
+        on uncertain lines (slower)</label
+      ><label class="setting-row"
+        ><input id="dedupeOCR" type="checkbox" checked />Skip repeated OCR text
+        when the images also match</label
+      ><label class="setting-row"
+        ><input id="showArea" type="checkbox" checked />Show content-area
+        outline</label
+      ><small
+        >OCR works best for plain text. For complex text, equations or handwriting, mark frames for AI and use the correction prompt after export.</small
+      ><button id="applySettings" class="primary">
+        Apply & check similar marks
+      </button>
+    </dialog>
+    <dialog id="batchDialog" class="batch-dialog">
+      <div class="batch-heading"><h2>Batch queue</h2><button id="closeBatch">Close</button></div>
+      <p>Queue recordings. Configure once. Export one file at a time.</p>
+      <label for="batchPaths">Video paths · one per line</label>
+      <textarea id="batchPaths" rows="4" placeholder="C:\Recordings\recording-1.mp4&#10;C:\Recordings\recording-2.mp4"></textarea>
+      <div class="batch-settings">
+        <label>Export<select id="batchTask"><option value="pdf">PDF only</option><option value="ocr">OCR only</option><option value="both">PDF + OCR</option></select></label>
+        <label>Sensitivity <input id="batchSensitivity" type="number" min="0" max="100" step="1" value="50" /></label>
+        <label>Crop reference (seconds) <input id="batchReference" type="number" min="0" value="5" /></label>
+        <label>Maximum pages per PDF <input id="batchMaxPages" type="number" min="1" max="100" step="1" value="100" /></label>
+        <label><input id="batchAuto" type="checkbox" checked />Automatically export without review</label>
+        <label><input id="batchTimestamps" type="checkbox" checked />PDF timestamps</label>
+        <label><input id="batchSlides" type="checkbox" checked />Light slides only · skip camera/grid views</label>
+      </div>
+      <details class="inline-help"><summary>Batch help</summary><p>0: completed frames · 50: major steps · 100: fine detail. Disable Light slides only for dark slides or software demos. Keep the app open during processing. See the manual for unattended export limits.</p></details>
+      <div class="batch-actions"><button id="enqueueBatch">Add batch</button><button id="startBatch" class="primary">Start / resume</button><button id="pauseBatch">Pause after file</button><button id="stopBatch" class="stop-button">Stop now</button><button id="retryBatch">Retry failed files</button><button id="openBatchFolder">Open exports folder</button></div>
+      <p id="batchSummary" role="status" aria-live="polite"></p>
+      <div class="batch-table-wrap"><table class="batch-table"><thead><tr><th>File</th><th>Task</th><th>Status</th><th>Progress / notes</th><th>Added</th><th>Completed</th><th>Output</th></tr></thead><tbody id="batchRows"></tbody></table></div>
+      <p id="batchError" role="alert" hidden></p>
+    </dialog>
+    <script>
+      window.FRAMEREAD = { server: "__SERVER__", token: "__TOKEN__" };
+    </script>
+    <script src="__SERVER__/selection.js"></script>
+    <script src="__SERVER__/editor.js"></script>
+    <script src="__SERVER__/batch.js"></script>
+  </body>
+</html>
