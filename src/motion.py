@@ -9,8 +9,9 @@ import cv2
 import numpy as np
 
 from src.cancellation import check_cancel
+from src.ink import InkTracker
 
-VERSION = 5
+VERSION = 6
 
 
 class GrayCache:
@@ -283,7 +284,7 @@ class ScanMotionGuard:
         return {**raw, "page_change": False} if continuous else raw
 
 
-def annotate_motion(markers, images, fps, report=None, circles=None):
+def annotate_motion(markers, images, fps, report=None, circles=None, colors=None):
     """Add summary/demo analyses without replacing raw comparison evidence."""
     orb = cv2.ORB_create(nfeatures=900, fastThreshold=12)
     history = deque(maxlen=24)
@@ -296,7 +297,7 @@ def annotate_motion(markers, images, fps, report=None, circles=None):
     loop_baseline = None
     loop_bounds = None
     phases = []
-    pending_ink = np.zeros(images[0].shape, np.uint8) if images else None
+    ink = InkTracker(images[0].shape) if images else None
     previous_index = None
     overlays = transient_overlays(markers, images, fps)
     for i, (mark, gray) in enumerate(zip(markers, images)):
@@ -330,7 +331,7 @@ def annotate_motion(markers, images, fps, report=None, circles=None):
             loop_baseline = None
             loop_bounds = None
             loop_group = None
-            pending_ink.fill(0)
+            ink.reset()
             summary.update(page_group=group, reason="new scene")
         else:
             adjacent = compare(history[-2], current)
@@ -389,17 +390,17 @@ def annotate_motion(markers, images, fps, report=None, circles=None):
             growing = comparison["removed"] < .09 and comparison["added"] < .65 and comparison["change"] < .14
             reveal = coverage["moving"] and coverage["uncovered"] > .20 and coverage["new_pixels"] > 180
             if (similar or growing) and not reveal:
-                pending_ink = cv2.warpAffine(pending_ink, comparison["_matrix"], (480, 270), flags=cv2.INTER_NEAREST)
-                lost_pending = int(((pending_ink > 0) & comparison["_removed_ink"]).sum())
-                if lost_pending >= 6:
-                    earlier = markers[previous_index]["visual_analysis"].get("motion", {}).get("summary")
+                color = colors[i] if colors is not None else None
+                if color is not None and color.ndim == 1:
+                    color = np.unpackbits(color, count=gray.size).reshape(gray.shape).astype(bool)
+                for index, minimum in ink.step(history[-2].gray, gray, comparison, color,
+                                                mark['frame_idx']/fps, i):
+                    earlier = markers[index]["visual_analysis"].get("motion", {}).get("summary")
                     if earlier is not None:
-                        earlier.update(force_keep=True, noise=False, reason="before new writing disappears")
-                    pending_ink[comparison["_removed_ink"]] = 0
-                if comparison["moving"]:
-                    pending_ink.fill(0)
-                elif comparison["ink_added"] >= 6 and comparison["ink_removed"] <= max(3, comparison["ink_added"] * .15):
-                    pending_ink[comparison["_added_ink"]] = 1
+                        old_minimum = earlier.get('preserve_min_sensitivity', 100)
+                        minimum = min(old_minimum, minimum)
+                        earlier.update(force_keep=True, preserve_min_sensitivity=minimum,
+                                       noise=False, reason="temporary emphasis before fading" if minimum else "before new writing disappears")
                 redundant = (comparison["added"] < .015 and comparison["removed"] < .015 and comparison["change"] < .002)
                 new_ink = comparison["ink_added"] >= 6 and comparison["ink_removed"] <= 3
                 summary.update(page_group=group, noise=raw["noise"] or redundant,
@@ -415,7 +416,7 @@ def annotate_motion(markers, images, fps, report=None, circles=None):
                 loop_baseline = None
                 loop_bounds = None
                 loop_group = None
-                pending_ink.fill(0)
+                ink.reset()
         raw["motion"] = {"version": VERSION, "summary": summary, "demo": demo}
         if reference_index != i and persistent_new:
             summary.update(force_keep=True, noise=False, reason="new persistent content during animation")

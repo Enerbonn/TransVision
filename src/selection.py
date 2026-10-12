@@ -70,7 +70,8 @@ def apply_sensitivity(markers, sensitivity=50, hide_camera=True, motion_mode="su
         # A trailing cursor-only/no-change candidate must not replace useful content.
         final = (eligible or group)[-1]
         keep = {final["frame_idx"]}
-        keep.update(m["frame_idx"] for m in group if effective_analysis(m, motion_mode).get("force_keep"))
+        keep.update(m["frame_idx"] for m in group if effective_analysis(m, motion_mode).get("force_keep")
+                    and sensitivity >= effective_analysis(m, motion_mode).get("preserve_min_sensitivity", 0))
         if sensitivity:
             keep.update(m["frame_idx"] for m in eligible
                         if sensitivity == 100 or effective_analysis(m, motion_mode).get("changed_fraction", 0) >= threshold)
@@ -242,6 +243,7 @@ def analyze_selection(
     from src.motion import GrayCache
     motion_images = GrayCache()
     motion_circles = []
+    motion_colors = []
     group = -1
     was_camera = False
     exported = {
@@ -294,6 +296,8 @@ def analyze_selection(
             motion_images.append(current)
             from src.motion import circle_candidates
             motion_circles.append(np.packbits(circle_candidates(image)))
+            from src.ink import colored_ink
+            motion_colors.append(np.packbits(colored_ink(image)))
             d = (
                 difference(previous, current)
                 if previous is not None
@@ -330,4 +334,4 @@ def analyze_selection(
     finally:
         cap.release()
     from src.motion import annotate_motion
-    return annotate_motion(result, motion_images, session["fps"], report, motion_circles)
+    return annotate_motion(result, motion_images, session["fps"], report, motion_circles, motion_colors)

@@ -37,7 +37,13 @@ No images are uploaded automatically and TransVision does not call a paid LLM AP
 **Summarize movement** is the default. It compares content after accounting for
 shifts and zooming, groups repeating motion, and keeps views that reveal new areas.
 New writing is tracked separately from motion; when detected new ink disappears,
-a previous frame can be kept with its original timestamp. Temporary dark overlays
+a previous clear frame can be kept with its original timestamp. Partial fading is
+combined into one before-loss capture. Colored marks near existing writing are
+treated as possible emphasis: sensitivity 0 does not force their intermediate
+views, while 50–100 can preserve a stable view before they fade. New marks in
+empty areas and small symbols remain protected. This distinction is approximate;
+use manual marks for important annotations the automatic selection misses.
+Temporary dark overlays
 are suppressed only when the clear underlying view returns shortly afterward.
 
 **Capture demonstration changes** keeps more distinct application/layout states

@@ -46,7 +46,7 @@ const TransVisionSelection = (() => {
       const eligible = group.filter((m) => !analysis(m).noise);
       const final = (eligible.length ? eligible : group).at(-1);
       const keep = new Set([final.frame_idx]);
-      for (const mark of group) if (analysis(mark).force_keep) keep.add(mark.frame_idx);
+      for (const mark of group) if (analysis(mark).force_keep && value >= (analysis(mark).preserve_min_sensitivity ?? 0)) keep.add(mark.frame_idx);
       if (value) for (const mark of eligible)
         if (value === 100 || (analysis(mark).changed_fraction ?? 0) >= cutoff)
           keep.add(mark.frame_idx);
