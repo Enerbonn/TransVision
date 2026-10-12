@@ -48,6 +48,15 @@ PDF parts retain the video name: a 250-frame export from `lesson.mp4` produces
 `lesson_01.pdf`, `lesson_02.pdf`, and `lesson_03.pdf` at the default 100-page limit.
 Give the skill all relevant parts so it can follow source timestamps across them.
 
+For audio-to-visual tracing, export the spoken transcript from your audio
+transcription app as **SRT** and enable **PDF timestamps** in TransVision. Give
+review(er) the SRT file and all relevant PDF parts from the same recording.
+**VTT works equally well**; both retain timed speech segments. Plain TXT is still
+usable, but without timestamps the agent must match speech to visuals by topic.
+Use the same recording start point; report any trimming or time offset. TransVision
+captures visuals and does not transcribe audio. Timestamps help locate evidence;
+they do not correct transcription errors.
+
 ## Credits
 
 **© 2026 Irvin John Parulan.** Based on [FrameRead by @pr1hm](https://github.com/pr1hm/FrameRead), originally published at [s-pra1ham/FrameRead](https://github.com/s-pra1ham/FrameRead). TransVision retains its [Apache 2.0 license](LICENSE); see [NOTICE](NOTICE).
