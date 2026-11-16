@@ -57,6 +57,10 @@ Use the same recording start point; report any trimming or time offset. TransVis
 captures visuals and does not transcribe audio. Timestamps help locate evidence;
 they do not correct transcription errors.
 
+## Use TransVision exports with Watch
+
+Give [Watch](https://github.com/Enerbonn/watch) the timestamped PDF parts and a timed speech transcript from the same recording. Watch checks the matching frames and cues as your questions get more specific. [AVC](https://github.com/Enerbonn/AVC) can export both streams in one workflow.
+
 ## Credits
 
 **© 2026 Irvin John Parulan.** Based on [FrameRead by @pr1hm](https://github.com/pr1hm/FrameRead), originally published at [s-pra1ham/FrameRead](https://github.com/s-pra1ham/FrameRead). TransVision retains its [Apache 2.0 license](LICENSE); see [NOTICE](NOTICE).
